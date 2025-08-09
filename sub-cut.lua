@@ -290,22 +290,57 @@ function cut_audio_fragment()
             ".m4a"
         }
 
-        args = {
-            mpv_path,
-            video_path,
-            "--start", start_timestamp,
-            "--end", end_timestamp,
-            "--aid", aid,
-            "--video=no",
-            -- "--af=afade=t=in:st=" .. start_timestamp .. ":d=" .. d .. ",afade=t=out:st=" .. (end_timestamp - d) .. ":d=" .. d,
-            "--o=" .. filename
-        }
+        if video_path:sub(1, 4) == "http" then
+            args = {
+                mpv_path,
+                video_path,
+                "--start", start_timestamp,
+                "--end", end_timestamp,
+                "--aid", aid,
+                "--video=no",
+                -- "--af=afade=t=in:st=" .. start_timestamp .. ":d=" .. d .. ",afade=t=out:st=" .. (end_timestamp - d) .. ":d=" .. d,
+                "--o=" .. filename
+            }
 
-        if video_path:sub(1, 4) == "http" and mp.get_property("ytdl-format") ~= "" then
-            table.insert(args, #args, "--ytdl-format=" .. mp.get_property("ytdl-format"))
+            if mp.get_property("ytdl-format") ~= "" then
+                table.insert(args, #args, "--ytdl-format=" .. mp.get_property("ytdl-format"))
+            end
+
+            utils.subprocess_detached({ args = args, cancellable = false })
+        else
+            local i = 0
+            local selected_audio_ordinal = 0
+            local audio_ordinal_counter = 0
+            local tracks_count = mp.get_property_number("track-list/count")
+            while i < tracks_count do
+                local track_type = mp.get_property(string.format("track-list/%d/type", i))
+                local track_selected = mp.get_property(string.format("track-list/%d/selected", i))
+
+                if track_type == "audio" then
+                    if track_selected == "yes" then
+                        selected_audio_ordinal = audio_ordinal_counter
+                    end
+                    audio_ordinal_counter = audio_ordinal_counter + 1
+                end
+
+                i = i + 1
+            end
+
+            args = {
+                ffmpeg_path,
+                "-y",
+                "-ss", tostring(start_timestamp),
+                "-i", video_path,
+                "-t", tostring(t),
+                "-map", "0:a:" .. tostring(selected_audio_ordinal),
+                "-af", "afade=t=in:st=0:d=" .. d .. ",afade=t=out:st=" .. (t - d) .. ":d=" .. d,
+                "-c:a", "aac",
+                "-ac", "2",
+                filename
+            }
+
+            utils.subprocess_detached({ args = args, cancellable = false })
         end
-
-        utils.subprocess_detached({ args = args, cancellable = false })
     end
 end
 
