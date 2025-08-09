@@ -1,5 +1,7 @@
 # mpv-scripts
 
+With Audio Clip fixes. Rest is same as original mpv-script
+
 Most of the scripts are experimental and may lack some functionality. Usage information and default keybindings can be found at the beginning of each .lua file.
 
 - **sub-cut** - extract a part of the video as audio or video (with or without subtitles)
